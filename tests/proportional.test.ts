@@ -88,6 +88,29 @@ describe('distributeAcrossChains', () => {
     expect(bsc.results).toEqual([]);
   });
 
+  it('rejects duplicate fund entries for the same chain', () => {
+    // a repeated chainId would silently pay that chain's users twice
+    expect(() =>
+      distributeAcrossChains(eligibleUsers, [
+        { chainId: 'arbitrum', guardianFundBalanceUsd: 5_000 },
+        { chainId: 'arbitrum', guardianFundBalanceUsd: 5_000 },
+      ])
+    ).toThrow('duplicate Guardian Fund entry for chain "arbitrum"');
+  });
+
+  it('treats a corrupt negative fund balance as an empty fund', () => {
+    const distributionsWithNegativeFund = distributeAcrossChains(
+      eligibleUsers,
+      [{ chainId: 'arbitrum', guardianFundBalanceUsd: -5_000 }]
+    );
+    const arbitrum = findChain(distributionsWithNegativeFund, 'arbitrum');
+
+    expect(arbitrum.coverageRatio).toBe(0);
+    for (const result of arbitrum.results) {
+      expect(result.remediationUsd).toBe(0);
+    }
+  });
+
   it('users on a chain without a fund allocation receive nothing', () => {
     // only arbitrum has an allocation, so frank (ethereum) appears nowhere
     const arbitrumOnly = distributeAcrossChains(eligibleUsers, [

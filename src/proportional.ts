@@ -34,6 +34,16 @@ export function distributeAcrossChains(
   eligibleUsers: User[],
   chainFunds: ChainFund[]
 ): ChainRemediation[] {
+  // A repeated chainId would pay that chain's users once per entry,
+  // silently doubling payouts — corrupt input, so fail loudly.
+  const seenChainIds = new Set<ChainId>();
+  for (const fund of chainFunds) {
+    if (seenChainIds.has(fund.chainId)) {
+      throw new Error(`duplicate Guardian Fund entry for chain "${fund.chainId}"`);
+    }
+    seenChainIds.add(fund.chainId);
+  }
+
   return chainFunds.map((fund) => {
     const chainUsers = eligibleUsers.filter(
       (user) => user.chainId === fund.chainId
@@ -47,11 +57,16 @@ export function distributeAcrossChains(
       chainId: fund.chainId,
       guardianFundBalanceUsd: fund.guardianFundBalanceUsd,
       totalEligibleNetDepositsUsd,
-      // No losses on the chain → vacuously fully covered.
+      // No losses on the chain → vacuously fully covered. Floored at zero so
+      // a corrupt negative fund balance reads as an empty fund, not a
+      // negative ratio.
       coverageRatio:
         totalEligibleNetDepositsUsd > 0
           ? Math.min(
-              fund.guardianFundBalanceUsd / totalEligibleNetDepositsUsd,
+              Math.max(
+                fund.guardianFundBalanceUsd / totalEligibleNetDepositsUsd,
+                0
+              ),
               1
             )
           : 1,

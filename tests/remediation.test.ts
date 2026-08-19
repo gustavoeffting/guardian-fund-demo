@@ -34,6 +34,12 @@ describe('remediationAmountUsd — C = MIN((N/U)*G, N)', () => {
   it('pays nothing when the Guardian Fund is empty', () => {
     expect(remediationAmountUsd(9_000, 60_000, 0)).toBe(0);
   });
+
+  it('never returns a negative payout on corrupt inputs', () => {
+    // a negative fund balance or negative N must not become a clawback
+    expect(remediationAmountUsd(9_000, 60_000, -30_000)).toBe(0);
+    expect(remediationAmountUsd(-1_000, 60_000, 30_000)).toBe(0);
+  });
 });
 
 describe('calculateRemediations', () => {

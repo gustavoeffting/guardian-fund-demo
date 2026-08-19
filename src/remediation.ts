@@ -32,7 +32,9 @@ export function remediationAmountUsd(
   }
   const proportionalShareUsd =
     (userNetDepositsUsd / totalEligibleNetDepositsUsd) * guardianFundBalanceUsd;
-  return Math.min(proportionalShareUsd, userNetDepositsUsd);
+  // Floor at zero: corrupt inputs (negative fund balance or net deposits)
+  // must degrade to "no payout", never to a negative amount (a clawback).
+  return Math.max(Math.min(proportionalShareUsd, userNetDepositsUsd), 0);
 }
 
 /**
